@@ -9,20 +9,54 @@ namespace UniversalStickerAtlas.Editor
         {
             Material targetMat = materialEditor.target as Material;
 
-            // Decal Info Banner
+            // Check if any RoadSignDecal object is currently selected
+            RoadSignDecal selectedDecal = Selection.activeGameObject != null
+                ? Selection.activeGameObject.GetComponent<RoadSignDecal>()
+                : null;
+
+            // Shared Material Notice Banner
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUILayout.LabelField("🏷️ Universal Sticker & Decal Atlas Material", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "This material is shared across Sticker Decal objects.\n" +
-                "• Changing 'Color Tint' below will automatically sync to any selected Sticker Decal in your scene.\n" +
-                "• You can also adjust individual decals directly on the 'Sticker Decal' component on your GameObject.",
-                MessageType.Info
+                "⚠️ SHARED MATERIAL ASSET\n" +
+                "This material is shared across multiple stickers in your scene.\n" +
+                "• Changing 'Global Material Color' below affects ALL stickers sharing this material.\n" +
+                "• To change color for ONLY one sticker, use 'Per-Sticker Tint' on the Sticker Decal component.",
+                MessageType.Warning
             );
+
+            // If a decal is selected, offer direct per-sticker color control right here!
+            if (selectedDecal != null)
+            {
+                EditorGUILayout.Space(4);
+                EditorGUILayout.LabelField("🎨 Selected Sticker Quick Color:", EditorStyles.boldLabel);
+
+                EditorGUI.BeginChangeCheck();
+                Color newDecalColor = EditorGUILayout.ColorField(
+                    new GUIContent("Per-Sticker Tint (Selected Only)", "Changes the tint for the currently selected sticker only without affecting other stickers."),
+                    selectedDecal.TintColor
+                );
+                if (EditorGUI.EndChangeCheck())
+                {
+                    foreach (GameObject go in Selection.gameObjects)
+                    {
+                        if (go == null) continue;
+                        RoadSignDecal d = go.GetComponent<RoadSignDecal>();
+                        if (d != null)
+                        {
+                            Undo.RecordObject(d, "Change Sticker Decal Tint");
+                            d.TintColor = newDecalColor;
+                            d.ApplyProperties();
+                            EditorUtility.SetDirty(d);
+                        }
+                    }
+                }
+            }
             EditorGUILayout.EndVertical();
 
-            EditorGUILayout.Space(6);
+            EditorGUILayout.Space(8);
 
-            // Find properties
+            // Find shader properties
             MaterialProperty baseMap = FindProperty("_BaseMap", properties, false);
             MaterialProperty baseColor = FindProperty("_BaseColor", properties, false);
             MaterialProperty enableNormal = FindProperty("_EnableNormalMap", properties, false);
@@ -47,18 +81,12 @@ namespace UniversalStickerAtlas.Editor
             MaterialProperty metallic = FindProperty("_Metallic", properties, false);
             MaterialProperty zOffset = FindProperty("_ZOffset", properties, false);
 
-            // 1. Base Map & Color Tint (Synchronized to selected Decals!)
+            // 1. Base Map & Global Material Color Tint
             if (baseMap != null) materialEditor.TexturePropertySingleLine(new GUIContent("Base Map (Atlas)"), baseMap);
 
             if (baseColor != null)
             {
-                EditorGUI.BeginChangeCheck();
-                materialEditor.ColorProperty(baseColor, "Color Tint");
-                if (EditorGUI.EndChangeCheck())
-                {
-                    // Sync color change to currently selected RoadSignDecal instances
-                    SyncColorToSelectedDecals(baseColor.colorValue);
-                }
+                materialEditor.ColorProperty(baseColor, "Global Material Color (All Stickers)");
             }
 
             EditorGUILayout.Space(8);
@@ -118,24 +146,6 @@ namespace UniversalStickerAtlas.Editor
             // Render Queue & Double Sided options
             materialEditor.RenderQueueField();
             materialEditor.DoubleSidedGIField();
-        }
-
-        private void SyncColorToSelectedDecals(Color newColor)
-        {
-            if (Selection.gameObjects == null) return;
-
-            foreach (GameObject go in Selection.gameObjects)
-            {
-                if (go == null) continue;
-                RoadSignDecal decal = go.GetComponent<RoadSignDecal>();
-                if (decal != null)
-                {
-                    Undo.RecordObject(decal, "Change Sticker Decal Tint from Material");
-                    decal.TintColor = newColor;
-                    decal.ApplyProperties();
-                    EditorUtility.SetDirty(decal);
-                }
-            }
         }
     }
 }
