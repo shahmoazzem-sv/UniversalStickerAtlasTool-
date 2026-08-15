@@ -124,9 +124,9 @@ namespace UniversalStickerAtlas.Editor
 
             if (useGrid != null && useGrid.floatValue > 0.5f)
             {
-                if (gridCols != null) materialEditor.IntSliderProperty(gridCols, 1, 16, new GUIContent("Grid Columns"));
-                if (gridRows != null) materialEditor.IntSliderProperty(gridRows, 1, 16, new GUIContent("Grid Rows"));
-                if (cellIndex != null) materialEditor.IntSliderProperty(cellIndex, 0, 64, new GUIContent("Cell Index (0-based)"));
+                if (gridCols != null) materialEditor.ShaderProperty(gridCols, "Grid Columns");
+                if (gridRows != null) materialEditor.ShaderProperty(gridRows, "Grid Rows");
+                if (cellIndex != null) materialEditor.ShaderProperty(cellIndex, "Cell Index (0-based)");
             }
             else
             {
