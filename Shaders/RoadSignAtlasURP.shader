@@ -207,5 +207,6 @@ Shader "Custom/RoadSignAtlasURP"
             ENDHLSL
         }
     }
+    CustomEditor "UniversalStickerAtlas.Editor.RoadSignAtlasShaderGUI"
     FallBack "Hidden/Universal Render Pipeline/FallbackError"
 }

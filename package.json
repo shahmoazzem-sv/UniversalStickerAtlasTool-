@@ -1,6 +1,6 @@
 {
   "name": "com.universal.sticker-atlas-tool",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "displayName": "Universal Surface Sticker & Decal Atlas Tool",
   "description": "In-Unity texture atlas cropping, surface normal snapping, chroma key background removal, and interactive Scene View stamping tool for Unity URP.",
   "unity": "2022.3",

@@ -19,6 +19,10 @@ namespace UniversalStickerAtlas
         [Tooltip("The base diffuse/albedo texture atlas image containing sticker or road sign graphics.")]
         [SerializeField] private Texture2D atlasTexture;
 
+        [Header("Appearance & Color Tint")]
+        [Tooltip("Color tint multiplied with the texture atlas image. If left white (1,1,1), the Material's Color Tint is used.")]
+        [SerializeField] private Color tintColor = Color.white;
+
         [Header("Normal Map Settings")]
         [Tooltip("Optional normal map atlas matching the base texture layout for realistic 3D surface detail.")]
         [SerializeField] private Texture2D normalMap;
@@ -58,10 +62,7 @@ namespace UniversalStickerAtlas
         [Tooltip("Normalized 0..1 UV sub-rectangle (X-Offset, Y-Offset, Width, Height) for custom cropping.")]
         [SerializeField] private Rect signRect = new Rect(0f, 0f, 1f, 1f);
 
-        [Header("Appearance & Snapping")]
-        [Tooltip("Color tint multiplied with the texture atlas image.")]
-        [SerializeField] private Color tintColor = Color.white;
-
+        [Header("Snapping & Placement")]
         [Tooltip("Surface lift offset distance along normal to prevent Z-fighting flickering on flat meshes.")]
         [Range(-0.05f, 0.05f)]
         [SerializeField] private float zOffset = 0.002f;
@@ -82,6 +83,7 @@ namespace UniversalStickerAtlas
 
         private List<RaycastHit> cachedHits = new List<RaycastHit>();
         private int currentHitIndex = 0;
+        private Color lastMaterialColor = Color.white;
 
         public Texture2D AtlasTexture
         {
@@ -192,6 +194,25 @@ namespace UniversalStickerAtlas
             ApplyProperties();
         }
 
+        private void Update()
+        {
+#if UNITY_EDITOR
+            // In editor, if user modifies the Material's Color Tint in the Material Inspector, detect and refresh
+            if (!Application.isPlaying && meshRenderer != null && meshRenderer.sharedMaterial != null)
+            {
+                if (meshRenderer.sharedMaterial.HasProperty("_BaseColor"))
+                {
+                    Color currentMatColor = meshRenderer.sharedMaterial.GetColor("_BaseColor");
+                    if (currentMatColor != lastMaterialColor)
+                    {
+                        lastMaterialColor = currentMatColor;
+                        ApplyProperties();
+                    }
+                }
+            }
+#endif
+        }
+
         public void ApplyProperties()
         {
             if (meshRenderer == null)
@@ -226,7 +247,36 @@ namespace UniversalStickerAtlas
             propBlock.SetFloat("_ColorKeyTolerance", colorKeyTolerance);
             propBlock.SetFloat("_ColorKeySoftness", colorKeySoftness);
 
-            propBlock.SetColor("_BaseColor", tintColor);
+            // Compute effective color:
+            // If the user changed the Material's color tint, allow it to work seamlessly.
+            Color effectiveColor = tintColor;
+            if (meshRenderer.sharedMaterial != null)
+            {
+                Color matColor = Color.white;
+                if (meshRenderer.sharedMaterial.HasProperty("_BaseColor"))
+                {
+                    matColor = meshRenderer.sharedMaterial.GetColor("_BaseColor");
+                }
+                else if (meshRenderer.sharedMaterial.HasProperty("_Color"))
+                {
+                    matColor = meshRenderer.sharedMaterial.GetColor("_Color");
+                }
+
+                lastMaterialColor = matColor;
+
+                if (tintColor == Color.white)
+                {
+                    effectiveColor = matColor;
+                }
+                else if (matColor != Color.white)
+                {
+                    effectiveColor = tintColor * matColor;
+                }
+            }
+
+            propBlock.SetColor("_BaseColor", effectiveColor);
+            propBlock.SetColor("_Color", effectiveColor);
+
             propBlock.SetFloat("_UseGrid", useGrid ? 1.0f : 0.0f);
             propBlock.SetInt("_GridCols", Mathf.Max(1, gridCols));
             propBlock.SetInt("_GridRows", Mathf.Max(1, gridRows));
@@ -357,7 +407,11 @@ namespace UniversalStickerAtlas
 
         private void EnsureNearbyColliders(Vector3 center, float radius)
         {
+#if UNITY_2023_1_OR_NEWER
             MeshRenderer[] renderers = FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None);
+#else
+            MeshRenderer[] renderers = FindObjectsOfType<MeshRenderer>();
+#endif
             foreach (MeshRenderer r in renderers)
             {
                 if (r.transform == transform || r.transform.IsChildOf(transform)) continue;
